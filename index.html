@@ -35,14 +35,23 @@
 
       // 選手登録
       const [starters, setStarters] = useState(["", "", "", "", "", "", "", "", ""]);
-      const [bench, setBench] = useState(["", "", "", "", "", ""]); // 控え6枠
+      const [bench, setBench] = useState(["", "", "", "", "", ""]);
 
+      // テキスト管理（現在入力中 ＋ 過去の履歴）
       const [details, setDetails] = useState("");
-      const [copied, setCopied] = useState(false);
-      const [activeTab, setActiveTab] = useState('order');
-      const textareaRef = useRef(null);
+      const [history, setHistory] = useState("");
+      
+      // テキスト入力欄のタブ状態（'current' = 現在, 'history' = 履歴）
+      const [inputTab, setInputTab] = useState("current");
 
-      // ★ 自チームのメンバーリスト（全28名）
+      const [copied, setCopied] = useState(false);
+      
+      const [activeTab, setActiveTab] = useState('order');
+      
+      const currentTextareaRef = useRef(null);
+      const historyTextareaRef = useRef(null);
+
+      // 自チームのメンバーリスト
       const teamMembers = [
         "小垰(由)", "橋本", "児玉", "岡井(晴)", "小垰(央)", "八谷", "吉永", 
         "末國", "福場", "倉橋", "新矢", "黒瀬", "泉", "吉田", "曽田", 
@@ -79,7 +88,21 @@
         setBench(newBench);
       };
 
+      // ★チェンジを押したときの処理（履歴への移動とクリア）
       const handleNextHalf = () => {
+        // 現在のテキストを履歴に追加
+        let newHistory = history;
+        if (details.trim() !== "") {
+          newHistory += details.trimEnd() + "\nチェンジ\n\n";
+        } else {
+          newHistory += "チェンジ\n\n";
+        }
+        setHistory(newHistory);
+        
+        // 入力欄を空白に戻す
+        setDetails("");
+
+        // イニングを進める
         if (currentHalf === 'top') {
           setCurrentHalf('bottom');
         } else {
@@ -88,10 +111,11 @@
             setCurrentHalf('top');
           }
         }
-        insertText('チェンジ\n');
+        
+        // 自動で現在の入力タブに戻す
+        setInputTab("current");
       };
 
-      // NaNを防ぐ安全な変換
       const safeParseInt = (val) => {
         if (val === undefined || val === null || val.toString().trim() === "") return 0;
         const parsed = parseInt(val, 10);
@@ -99,11 +123,9 @@
       };
 
       const insertText = (textToInsert) => {
-        // ★ 修正：ボタンの文字表記と完全に一致させる ("＋ 1" のようにスペースが入っているため)
         const scoreMatch = textToInsert.match(/＋\s*([0-9１-９])/);
         
         if (scoreMatch) {
-          // 全角数字を半角に変換してから数値化する処理
           const numStr = scoreMatch[1].replace(/[１-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0));
           const points = parseInt(numStr, 10);
           
@@ -120,17 +142,21 @@
           }
         }
 
-        if (!textareaRef.current) return;
-        const textarea = textareaRef.current;
+        // 開いているタブに応じて対象のテキストエリアを決定
+        const activeRef = inputTab === 'current' ? currentTextareaRef : historyTextareaRef;
+        const currentText = inputTab === 'current' ? details : history;
+        const setTargetText = inputTab === 'current' ? setDetails : setHistory;
+
+        if (!activeRef.current) return;
+        const textarea = activeRef.current;
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
-        const currentText = details;
 
         let newText = "";
         if (textToInsert === 'BACKSPACE') {
           if (start === end && start > 0) {
             newText = currentText.substring(0, start - 1) + currentText.substring(end);
-            setDetails(newText);
+            setTargetText(newText);
             setTimeout(() => {
               textarea.selectionStart = textarea.selectionEnd = start - 1;
               textarea.focus();
@@ -140,7 +166,7 @@
         }
 
         newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
-        setDetails(newText);
+        setTargetText(newText);
 
         setTimeout(() => {
           textarea.selectionStart = textarea.selectionEnd = start + textToInsert.length;
@@ -159,13 +185,14 @@
         ? `${currentInningText} 試合開始` 
         : `${currentInningText} 攻撃中`;
       
+      // プレビューには履歴(history)と現在(details)を繋げて表示
       const previewText = `${tournament || "大会名未入力"}
 🏟️${stadium || "球場未入力"}${weather}
 🆚${displayTeamB}
 ${matchStatusText}
 ${displayTeamA}${scoreAString}
 ${displayTeamB}${scoreBString}
-${details}`;
+${history}${details}`.trim();
 
       const handleCopy = () => {
         navigator.clipboard.writeText(previewText);
@@ -225,12 +252,10 @@ ${details}`;
         },
         status: {
           label: "状況・得点",
-          // ★修正：画像通り「＋ 1」などスペース入りの表記に合わせる
           items: ["無死", "一死", "二死", "三死", "＋ 1", "＋ 2", "＋ 3", "＋ 4", "得点"]
         },
         single: {
           label: "単字パーツ",
-          // ★修正：単字パーツの＋も半角スペース入りに合わせる
           items: ["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "ゴロ", "飛", "直", "邪", "安", "本", " 2", " 3", "＋"]
         }
       };
@@ -430,14 +455,49 @@ ${details}`;
               <button onClick={() => insertText("BACKSPACE")} className="flex-1 py-1 text-xs bg-rose-100 text-rose-700 rounded hover:bg-rose-200 font-bold">⌫ 消去</button>
             </div>
 
-            <textarea
-              ref={textareaRef}
-              rows={5}
-              value={details}
-              onChange={(e) => setDetails(e.target.value)}
-              className="w-full text-xs border rounded p-2 font-mono leading-relaxed focus:ring-2 focus:ring-emerald-500 outline-none"
-              placeholder="タップして編集..."
-            />
+            {/* ★ ここから：テキスト入力欄の切り替えタブ */}
+            <div className="border border-slate-200 rounded overflow-hidden">
+              <div className="flex bg-slate-100 border-b border-slate-200">
+                <button
+                  onClick={() => setInputTab('current')}
+                  className={`flex-1 py-1.5 text-xs font-bold transition-colors ${
+                    inputTab === 'current' ? 'bg-white text-emerald-700 border-b-2 border-emerald-500' : 'text-slate-500 hover:bg-slate-200 border-b-2 border-transparent'
+                  }`}
+                >
+                  📝 現在のイニング
+                </button>
+                <button
+                  onClick={() => setInputTab('history')}
+                  className={`flex-1 py-1.5 text-xs font-bold transition-colors ${
+                    inputTab === 'history' ? 'bg-white text-emerald-700 border-b-2 border-emerald-500' : 'text-slate-500 hover:bg-slate-200 border-b-2 border-transparent'
+                  }`}
+                >
+                  📚 過去の履歴（編集可）
+                </button>
+              </div>
+
+              {inputTab === 'current' ? (
+                <textarea
+                  ref={currentTextareaRef}
+                  rows={5}
+                  value={details}
+                  onChange={(e) => setDetails(e.target.value)}
+                  className="w-full text-xs p-2 font-mono leading-relaxed focus:ring-2 focus:ring-emerald-500 outline-none border-none"
+                  placeholder="現在のイニングの出来事を入力... (チェンジを押すと過去の履歴へ移動します)"
+                />
+              ) : (
+                <textarea
+                  ref={historyTextareaRef}
+                  rows={5}
+                  value={history}
+                  onChange={(e) => setHistory(e.target.value)}
+                  className="w-full text-xs p-2 font-mono leading-relaxed focus:ring-2 focus:ring-emerald-500 outline-none border-none bg-slate-50"
+                  placeholder="過去のイニングがここに蓄積されます"
+                />
+              )}
+            </div>
+            {/* ★ ここまで */}
+
           </div>
 
           <div className="fixed bottom-0 left-0 right-0 p-3 bg-white border-t border-slate-200 shadow-lg z-50">
