@@ -35,17 +35,13 @@
 
       // 選手登録
       const [starters, setStarters] = useState(["", "", "", "", "", "", "", "", ""]);
-      const [bench, setBench] = useState(["", "", "", "", "", ""]); // 控え6枠
+      const [bench, setBench] = useState(["", "", "", "", "", ""]); 
 
-      // テキスト管理（現在入力中 ＋ 過去の履歴）
+      // テキスト管理
       const [details, setDetails] = useState("");
       const [history, setHistory] = useState("");
-      
-      // テキスト入力欄のタブ状態（'current' = 現在, 'history' = 履歴）
       const [inputTab, setInputTab] = useState("current");
-
       const [copied, setCopied] = useState(false);
-      
       const [activeTab, setActiveTab] = useState('order');
       
       const currentTextareaRef = useRef(null);
@@ -88,9 +84,7 @@
         setBench(newBench);
       };
 
-      // チェンジを押したときの処理
       const handleNextHalf = () => {
-        // 現在の回が空欄なら「0」を入れる処理
         if (currentHalf === 'top') {
           const currentScore = scoresA[currentInning - 1];
           if (currentScore === "" || currentScore === undefined) {
@@ -107,7 +101,6 @@
           }
         }
 
-        // 現在のテキストを履歴に追加
         let newHistory = history;
         if (details.trim() !== "") {
           newHistory += details.trimEnd() + "\nチェンジ\n\n";
@@ -115,11 +108,8 @@
           newHistory += "チェンジ\n\n";
         }
         setHistory(newHistory);
-        
-        // 入力欄を空白に戻す
         setDetails("");
 
-        // イニングを進める
         if (currentHalf === 'top') {
           setCurrentHalf('bottom');
         } else {
@@ -128,8 +118,6 @@
             setCurrentHalf('top');
           }
         }
-        
-        // 自動で現在の入力タブに戻す
         setInputTab("current");
       };
 
@@ -139,13 +127,12 @@
         return isNaN(parsed) ? 0 : parsed;
       };
 
-      const insertText = (textToInsert) => {
+      // ★引数 suffix でボタンごとに後ろに追加する文字を受け取る
+      const insertText = (textToInsert, shouldPrependNewline = false, suffix = "") => {
         const scoreMatch = textToInsert.match(/＋\s*([0-9１-９])/);
-        
         if (scoreMatch) {
           const numStr = scoreMatch[1].replace(/[１-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xfee0));
           const points = parseInt(numStr, 10);
-          
           if (currentHalf === 'top') {
             const newScores = [...scoresA];
             const currentVal = safeParseInt(newScores[currentInning - 1]);
@@ -159,7 +146,6 @@
           }
         }
 
-        // 開いているタブに応じて対象のテキストエリアを決定
         const activeRef = inputTab === 'current' ? currentTextareaRef : historyTextareaRef;
         const currentText = inputTab === 'current' ? details : history;
         const setTargetText = inputTab === 'current' ? setDetails : setHistory;
@@ -170,6 +156,7 @@
         const end = textarea.selectionEnd;
 
         let newText = "";
+        
         if (textToInsert === 'BACKSPACE') {
           if (start === end && start > 0) {
             newText = currentText.substring(0, start - 1) + currentText.substring(end);
@@ -182,11 +169,23 @@
           return;
         }
 
-        newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
+        let finalInsertText = textToInsert;
+        
+        // スタメン等の自動改行
+        if (shouldPrependNewline && start > 0) {
+          if (currentText.substring(start - 1, start) !== "\n") {
+            finalInsertText = "\n" + finalInsertText;
+          }
+        }
+
+        // ★設定されたスペース（1個 or 2個）を末尾に追加
+        finalInsertText = finalInsertText + suffix;
+
+        newText = currentText.substring(0, start) + finalInsertText + currentText.substring(end);
         setTargetText(newText);
 
         setTimeout(() => {
-          textarea.selectionStart = textarea.selectionEnd = start + textToInsert.length;
+          textarea.selectionStart = textarea.selectionEnd = start + finalInsertText.length;
           textarea.focus();
         }, 0);
       };
@@ -202,7 +201,6 @@
         ? `${currentInningText} 試合開始` 
         : `${currentInningText} 攻撃中`;
       
-      // プレビューには履歴(history)と現在(details)を繋げて表示
       const previewText = `${tournament || "大会名未入力"}
 🏟️${stadium || "球場未入力"}${weather}
 🆚${displayTeamB}
@@ -219,40 +217,42 @@ ${history}${details}`.trim();
 
       const orderSymbols = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨"];
 
-      // スタメン（数字＋名前）のボタン
       const starterButtons = starters.map((name, idx) => {
         const symbol = orderSymbols[idx];
-        return name ? `${symbol}${name} ` : `${symbol} `;
+        return name ? `${symbol}${name}` : `${symbol}`;
       });
 
-      const benchButtons = bench.filter(name => name.trim() !== "").map(name => `${name} `);
+      const benchButtons = bench.filter(name => name.trim() !== "").map(name => `${name}`);
 
+      // ★ suffix で追加するスペースの量をカテゴリごとに管理
       const presetCategories = {
         order: {
           label: "打順・スタメン",
           items: [
-            // ★追加：数字単体のボタン
             ...orderSymbols,
-            // 既存の「数字＋名前」ボタン
             ...starterButtons,
             "代打", "代走", "投手交代", "守備交代", "→", "走者",
             ...benchButtons
-          ]
+          ],
+          suffix: "  " // ★打順・スタメンのみスペース2個
         },
         team: {
           label: "選手一覧",
-          items: teamMembers.map(name => `${name} `)
+          items: teamMembers.map(name => `${name}`),
+          suffix: " " // ★これ以降はすべてスペース1個
         },
         runner: {
           label: "塁状況",
-          items: ["１塁", "２塁", "３塁", "１・２塁", "１・３塁", "２・３塁", "満塁", "本塁"]
+          items: ["１塁", "２塁", "３塁", "１・２塁", "１・３塁", "２・３塁", "満塁", "本塁"],
+          suffix: " "
         },
         hit: {
           label: "安打",
           items: [
             "投安", "捕安", "一安", "二安", "三安", "遊安", "左安", "中安", "右安", "内安",
             "左２", "中２", "右２", "左３", "中３", "右３", "左本", "中本", "右本", "適時打"
-          ]
+          ],
+          suffix: " "
         },
         out: {
           label: "凡退",
@@ -261,23 +261,28 @@ ${history}${details}`.trim();
             "左飛", "中飛", "右飛", "投飛", "捕飛", "一飛", "二飛", "三飛", "遊飛",
             "投直", "捕直", "一直", "二直", "三直", "遊直", "左直", "中直", "右直",
             "捕邪飛", "一邪飛", "三邪飛"
-          ]
+          ],
+          suffix: " "
         },
         bunt_other: {
           label: "犠打・他",
-          items: ["犠打", "犠飛", "併殺打", "敵失", "野選", "盗塁", "盗塁死", "けん制アウト", "タッチアウト"]
+          items: ["犠打", "犠飛", "併殺打", "敵失", "野選", "盗塁", "盗塁死", "けん制アウト", "タッチアウト"],
+          suffix: " "
         },
         strikeout: {
           label: "三振・四死球",
-          items: ["見三振", "空三振", "振逃", "四球", "死球", "敬遠"]
+          items: ["見三振", "空三振", "振逃", "四球", "死球", "敬遠"],
+          suffix: " "
         },
         status: {
           label: "状況・得点",
-          items: ["無死", "一死", "二死", "三死", "＋ 1", "＋ 2", "＋ 3", "＋ 4", "得点"]
+          items: ["無死", "一死", "二死", "三死", "＋ 1", "＋ 2", "＋ 3", "＋ 4", "得点"],
+          suffix: " "
         },
         single: {
           label: "単字パーツ",
-          items: ["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "ゴロ", "飛", "直", "邪", "安", "本", " 2", " 3", "＋"]
+          items: ["投", "捕", "一", "二", "三", "遊", "左", "中", "右", "ゴロ", "飛", "直", "邪", "安", "本", " 2", " 3", "＋"],
+          suffix: " "
         }
       };
 
@@ -457,8 +462,10 @@ ${history}${details}`.trim();
 
             <div className="flex flex-wrap gap-1.5 bg-slate-50 p-2 rounded border border-slate-200 max-h-40 overflow-y-auto">
               {presetCategories[activeTab].items.map((item, idx) => {
-                // 「数字だけ」のボタンは少し色を変えて分かりやすくする
                 const isOnlySymbol = orderSymbols.includes(item);
+                const isStarterButton = activeTab === 'order' && (isOnlySymbol || orderSymbols.some(sym => item.startsWith(sym)));
+                const suffix = presetCategories[activeTab].suffix;
+                
                 let btnClass = "px-2.5 py-1 text-xs bg-white text-slate-700 border border-slate-200 rounded shadow-sm font-medium hover:bg-emerald-50";
                 
                 if (isOnlySymbol) {
@@ -470,7 +477,8 @@ ${history}${details}`.trim();
                 return (
                   <button
                     key={idx}
-                    onClick={() => insertText(item)}
+                    // ★ 3つ目の引数に suffix (スペース) を渡す
+                    onClick={() => insertText(item, isStarterButton, suffix)}
                     className={btnClass}
                   >
                     {item}
