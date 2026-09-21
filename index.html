@@ -42,7 +42,7 @@
       const [activeTab, setActiveTab] = useState('order');
       const textareaRef = useRef(null);
 
-      // ★ 自チームのメンバーリスト（同姓は1文字追加で区別）
+      // ★ 自チームのメンバーリスト
       const teamMembers = [
         "小垰(由)", "橋本", "児玉", "岡井(晴)", "小垰(央)", "八谷", "吉永", 
         "末國", "福場", "倉橋", "新矢", "黒瀬", "泉", "吉田", "曽田", 
@@ -92,16 +92,21 @@
       };
 
       const insertText = (textToInsert) => {
+        // ★ NaN対策：空欄（""）の場合は0として扱う
         if (['＋１', '＋２', '＋３', '＋４'].includes(textToInsert)) {
           const points = parseInt(textToInsert.replace('＋', ''), 10);
           if (currentHalf === 'top') {
             const newScores = [...scoresA];
-            const currentVal = parseInt(newScores[currentInning - 1] || '0', 10);
+            const currentStr = newScores[currentInning - 1];
+            // 空白やパースできない文字の場合は0にする
+            const currentVal = (currentStr === "" || isNaN(parseInt(currentStr, 10))) ? 0 : parseInt(currentStr, 10);
             newScores[currentInning - 1] = (currentVal + points).toString();
             setScoresA(newScores);
           } else {
             const newScores = [...scoresB];
-            const currentVal = parseInt(newScores[currentInning - 1] || '0', 10);
+            const currentStr = newScores[currentInning - 1];
+            // 空白やパースできない文字の場合は0にする
+            const currentVal = (currentStr === "" || isNaN(parseInt(currentStr, 10))) ? 0 : parseInt(currentStr, 10);
             newScores[currentInning - 1] = (currentVal + points).toString();
             setScoresB(newScores);
           }
@@ -219,7 +224,6 @@ ${details}`;
       return (
         <div className="max-w-md mx-auto p-3 space-y-4">
           
-          {/* ★ 追加：メンバーのサジェスト（候補）リスト */}
           <datalist id="team-members">
             {teamMembers.map((name, i) => <option key={i} value={name} />)}
           </datalist>
