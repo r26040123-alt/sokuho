@@ -127,7 +127,6 @@
         return isNaN(parsed) ? 0 : parsed;
       };
 
-      // ★引数 suffix でボタンごとに後ろに追加する文字を受け取る
       const insertText = (textToInsert, shouldPrependNewline = false, suffix = "") => {
         const scoreMatch = textToInsert.match(/＋\s*([0-9１-９])/);
         if (scoreMatch) {
@@ -171,14 +170,12 @@
 
         let finalInsertText = textToInsert;
         
-        // スタメン等の自動改行
         if (shouldPrependNewline && start > 0) {
           if (currentText.substring(start - 1, start) !== "\n") {
             finalInsertText = "\n" + finalInsertText;
           }
         }
 
-        // ★設定されたスペース（1個 or 2個）を末尾に追加
         finalInsertText = finalInsertText + suffix;
 
         newText = currentText.substring(0, start) + finalInsertText + currentText.substring(end);
@@ -203,7 +200,7 @@
       
       const previewText = `${tournament || "大会名未入力"}
 🏟️${stadium || "球場未入力"}${weather}
-🆚${displayTeamB}
+${displayTeamA} 🆚 ${displayTeamB}
 ${matchStatusText}
 ${displayTeamA}${scoreAString}
 ${displayTeamB}${scoreBString}
@@ -224,7 +221,6 @@ ${history}${details}`.trim();
 
       const benchButtons = bench.filter(name => name.trim() !== "").map(name => `${name}`);
 
-      // ★ suffix で追加するスペースの量をカテゴリごとに管理
       const presetCategories = {
         order: {
           label: "打順・スタメン",
@@ -234,12 +230,12 @@ ${history}${details}`.trim();
             "代打", "代走", "投手交代", "守備交代", "→", "走者",
             ...benchButtons
           ],
-          suffix: "  " // ★打順・スタメンのみスペース2個
+          suffix: "  " 
         },
         team: {
           label: "選手一覧",
           items: teamMembers.map(name => `${name}`),
-          suffix: " " // ★これ以降はすべてスペース1個
+          suffix: " " 
         },
         runner: {
           label: "塁状況",
@@ -260,13 +256,17 @@ ${history}${details}`.trim();
             "投ゴロ", "捕ゴロ", "一ゴロ", "二ゴロ", "三ゴロ", "遊ゴロ",
             "左飛", "中飛", "右飛", "投飛", "捕飛", "一飛", "二飛", "三飛", "遊飛",
             "投直", "捕直", "一直", "二直", "三直", "遊直", "左直", "中直", "右直",
-            "捕邪飛", "一邪飛", "三邪飛"
+            // ★右邪飛、左邪飛を追加しました
+            "捕邪飛", "一邪飛", "三邪飛", "左邪飛", "右邪飛"
           ],
           suffix: " "
         },
         bunt_other: {
           label: "犠打・他",
-          items: ["犠打", "犠飛", "併殺打", "敵失", "野選", "盗塁", "盗塁死", "けん制アウト", "タッチアウト"],
+          items: [
+            "犠打", "犠飛", "併殺打", "敵失", "野選", "盗塁", "盗塁死", "けん制アウト", "タッチアウト",
+            "暴投", "投失", "捕失", "一失", "二失", "三失", "遊失", "左失", "中失", "右失"
+          ],
           suffix: " "
         },
         strikeout: {
@@ -477,7 +477,6 @@ ${history}${details}`.trim();
                 return (
                   <button
                     key={idx}
-                    // ★ 3つ目の引数に suffix (スペース) を渡す
                     onClick={() => insertText(item, isStarterButton, suffix)}
                     className={btnClass}
                   >
