@@ -31,9 +31,12 @@
       
       // 現在の攻撃イニングと表/裏の管理
       const [currentInning, setCurrentInning] = useState(1);
-      const [currentHalf, setCurrentHalf] = useState("top"); // "top" or "bottom"
+      const [currentHalf, setCurrentHalf] = useState("top"); 
 
+      // 選手登録
       const [starters, setStarters] = useState(["", "", "", "", "", "", "", "", ""]);
+      const [bench, setBench] = useState(["", "", "", "", "", ""]); // 控え6枠追加
+
       const [details, setDetails] = useState("");
       const [copied, setCopied] = useState(false);
       const [activeTab, setActiveTab] = useState('order');
@@ -60,6 +63,12 @@
         const newStarters = [...starters];
         newStarters[index] = value;
         setStarters(newStarters);
+      };
+
+      const handleBenchChange = (index, value) => {
+        const newBench = [...bench];
+        newBench[index] = value;
+        setBench(newBench);
       };
 
       const insertText = (textToInsert) => {
@@ -143,12 +152,16 @@ ${details}`;
         return name ? `${symbol}${name} ` : `${symbol} `;
       });
 
+      // 控え選手のボタン生成（空欄は除外）
+      const benchButtons = bench.filter(name => name.trim() !== "").map(name => `${name} `);
+
       const presetCategories = {
         order: {
           label: "打順・選手",
           items: [
             ...starterButtons,
-            "代打", "代走", "投手交代", "守備交代", "→", "走者"
+            "代打", "代走", "投手交代", "守備交代", "→", "走者",
+            ...benchButtons
           ]
         },
         runner: {
@@ -231,7 +244,9 @@ ${details}`;
           </div>
 
           <div className="bg-white p-4 rounded-lg shadow-sm space-y-3">
-            <h3 className="font-bold text-slate-700 text-sm border-b pb-1">2. スタメン登録（事前入力で名前ボタン自動生成）</h3>
+            <h3 className="font-bold text-slate-700 text-sm border-b pb-1">2. 選手登録（自動ボタン化）</h3>
+            
+            <div className="text-[11px] font-bold text-slate-400">▼ スタメン</div>
             <div className="grid grid-cols-3 gap-1.5">
               {starters.map((name, idx) => (
                 <div key={idx} className="flex items-center gap-1 border rounded p-1 bg-slate-50">
@@ -241,6 +256,22 @@ ${details}`;
                     placeholder="選手名"
                     value={name}
                     onChange={(e) => handleStarterChange(idx, e.target.value)}
+                    className="w-full text-xs bg-transparent outline-none"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="text-[11px] font-bold text-slate-400 mt-2">▼ 控え（代打・代走・交代用）</div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {bench.map((name, idx) => (
+                <div key={`bench-${idx}`} className="flex items-center gap-1 border rounded p-1 bg-slate-50">
+                  <span className="text-xs font-bold text-indigo-500 w-4">控</span>
+                  <input
+                    type="text"
+                    placeholder="控え選手"
+                    value={name}
+                    onChange={(e) => handleBenchChange(idx, e.target.value)}
                     className="w-full text-xs bg-transparent outline-none"
                   />
                 </div>
@@ -338,7 +369,9 @@ ${details}`;
                 <button
                   key={idx}
                   onClick={() => insertText(item)}
-                  className="px-2.5 py-1 text-xs bg-white hover:bg-emerald-50 text-slate-700 border border-slate-200 rounded shadow-sm font-medium"
+                  className={`px-2.5 py-1 text-xs bg-white text-slate-700 border border-slate-200 rounded shadow-sm font-medium ${
+                    benchButtons.includes(item) ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : 'hover:bg-emerald-50'
+                  }`}
                 >
                   {item}
                 </button>
