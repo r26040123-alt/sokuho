@@ -35,7 +35,7 @@
 
       // 選手登録
       const [starters, setStarters] = useState(["", "", "", "", "", "", "", "", ""]);
-      const [bench, setBench] = useState(["", "", "", "", "", ""]);
+      const [bench, setBench] = useState(["", "", "", "", "", ""]); // 控え6枠
 
       // テキスト管理（現在入力中 ＋ 過去の履歴）
       const [details, setDetails] = useState("");
@@ -88,8 +88,25 @@
         setBench(newBench);
       };
 
-      // ★チェンジを押したときの処理（履歴への移動とクリア）
+      // チェンジを押したときの処理
       const handleNextHalf = () => {
+        // 現在の回が空欄なら「0」を入れる処理
+        if (currentHalf === 'top') {
+          const currentScore = scoresA[currentInning - 1];
+          if (currentScore === "" || currentScore === undefined) {
+            const newScores = [...scoresA];
+            newScores[currentInning - 1] = "0";
+            setScoresA(newScores);
+          }
+        } else {
+          const currentScore = scoresB[currentInning - 1];
+          if (currentScore === "" || currentScore === undefined) {
+            const newScores = [...scoresB];
+            newScores[currentInning - 1] = "0";
+            setScoresB(newScores);
+          }
+        }
+
         // 現在のテキストを履歴に追加
         let newHistory = history;
         if (details.trim() !== "") {
@@ -202,6 +219,7 @@ ${history}${details}`.trim();
 
       const orderSymbols = ["①", "②", "③", "④", "⑤", "⑥", "⑦", "⑧", "⑨"];
 
+      // スタメン（数字＋名前）のボタン
       const starterButtons = starters.map((name, idx) => {
         const symbol = orderSymbols[idx];
         return name ? `${symbol}${name} ` : `${symbol} `;
@@ -213,6 +231,9 @@ ${history}${details}`.trim();
         order: {
           label: "打順・スタメン",
           items: [
+            // ★追加：数字単体のボタン
+            ...orderSymbols,
+            // 既存の「数字＋名前」ボタン
             ...starterButtons,
             "代打", "代走", "投手交代", "守備交代", "→", "走者",
             ...benchButtons
@@ -435,17 +456,27 @@ ${history}${details}`.trim();
             </div>
 
             <div className="flex flex-wrap gap-1.5 bg-slate-50 p-2 rounded border border-slate-200 max-h-40 overflow-y-auto">
-              {presetCategories[activeTab].items.map((item, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => insertText(item)}
-                  className={`px-2.5 py-1 text-xs bg-white text-slate-700 border border-slate-200 rounded shadow-sm font-medium ${
-                    (activeTab === 'team' || benchButtons.includes(item)) ? 'border-indigo-300 bg-indigo-50 text-indigo-800' : 'hover:bg-emerald-50'
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
+              {presetCategories[activeTab].items.map((item, idx) => {
+                // 「数字だけ」のボタンは少し色を変えて分かりやすくする
+                const isOnlySymbol = orderSymbols.includes(item);
+                let btnClass = "px-2.5 py-1 text-xs bg-white text-slate-700 border border-slate-200 rounded shadow-sm font-medium hover:bg-emerald-50";
+                
+                if (isOnlySymbol) {
+                  btnClass = "px-2.5 py-1 text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 rounded shadow-sm font-bold hover:bg-emerald-100";
+                } else if (activeTab === 'team' || benchButtons.includes(item)) {
+                  btnClass = "px-2.5 py-1 text-xs bg-indigo-50 text-indigo-800 border border-indigo-200 rounded shadow-sm font-medium hover:bg-indigo-100";
+                }
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => insertText(item)}
+                    className={btnClass}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="flex gap-1">
@@ -455,7 +486,6 @@ ${history}${details}`.trim();
               <button onClick={() => insertText("BACKSPACE")} className="flex-1 py-1 text-xs bg-rose-100 text-rose-700 rounded hover:bg-rose-200 font-bold">⌫ 消去</button>
             </div>
 
-            {/* ★ ここから：テキスト入力欄の切り替えタブ */}
             <div className="border border-slate-200 rounded overflow-hidden">
               <div className="flex bg-slate-100 border-b border-slate-200">
                 <button
@@ -496,7 +526,6 @@ ${history}${details}`.trim();
                 />
               )}
             </div>
-            {/* ★ ここまで */}
 
           </div>
 
