@@ -35,12 +35,20 @@
 
       // 選手登録
       const [starters, setStarters] = useState(["", "", "", "", "", "", "", "", ""]);
-      const [bench, setBench] = useState(["", "", "", "", "", ""]); // 控え6枠追加
+      const [bench, setBench] = useState(["", "", "", "", "", ""]); // 控え6枠
 
       const [details, setDetails] = useState("");
       const [copied, setCopied] = useState(false);
       const [activeTab, setActiveTab] = useState('order');
       const textareaRef = useRef(null);
+
+      // ★ 自チームのメンバーリスト（同姓は1文字追加で区別）
+      const teamMembers = [
+        "小垰(由)", "橋本", "児玉", "岡井(晴)", "小垰(央)", "八谷", "吉永", 
+        "末國", "福場", "倉橋", "新矢", "黒瀬", "泉", "吉田", "曽田", 
+        "中重", "内藤", "吉岡(佑)", "山口", "横山", "矢吹", "金川", 
+        "吉岡(瑞)", "糸原", "竹内", "内田", "野口", "岡井(愛)"
+      ];
 
       const toFullWidth = (str) => {
         return str.replace(/[0-9]/g, (s) => String.fromCharCode(s.charCodeAt(0) + 0xfee0));
@@ -71,8 +79,19 @@
         setBench(newBench);
       };
 
+      const handleNextHalf = () => {
+        if (currentHalf === 'top') {
+          setCurrentHalf('bottom');
+        } else {
+          if (currentInning < 9) {
+            setCurrentInning(currentInning + 1);
+            setCurrentHalf('top');
+          }
+        }
+        insertText('チェンジ\n');
+      };
+
       const insertText = (textToInsert) => {
-        // ★ 自動スコア加算ロジック
         if (['＋１', '＋２', '＋３', '＋４'].includes(textToInsert)) {
           const points = parseInt(textToInsert.replace('＋', ''), 10);
           if (currentHalf === 'top') {
@@ -85,18 +104,6 @@
             const currentVal = parseInt(newScores[currentInning - 1] || '0', 10);
             newScores[currentInning - 1] = (currentVal + points).toString();
             setScoresB(newScores);
-          }
-        }
-
-        // ★ 「チェンジ」ボタン時の自動イニング進行
-        if (textToInsert === 'チェンジ') {
-          if (currentHalf === 'top') {
-            setCurrentHalf('bottom');
-          } else {
-            if (currentInning < 9) {
-              setCurrentInning(currentInning + 1);
-              setCurrentHalf('top');
-            }
           }
         }
 
@@ -131,12 +138,20 @@
       const scoreAString = scoresA.map(s => s === "" ? "" : toFullWidth(s)).join("");
       const scoreBString = scoresB.map(s => s === "" ? "" : toFullWidth(s)).join("");
 
+      const displayTeamA = teamA || "先攻";
+      const displayTeamB = teamB || "後攻";
+      
+      const currentInningText = `${currentInning}回${currentHalf === 'top' ? '表' : '裏'}`;
+      const matchStatusText = (currentInning === 1 && currentHalf === 'top') 
+        ? `${currentInningText} 試合開始` 
+        : `${currentInningText} 攻撃中`;
+      
       const previewText = `${tournament || "大会名未入力"}
 🏟️${stadium || "球場未入力"}${weather}
-🆚${teamB || "後攻チーム"}
-試合開始
-${teamA || "先攻チーム"}${scoreAString}
-${teamB || "後攻チーム"}${scoreBString}
+🆚${displayTeamB}
+${matchStatusText}
+${displayTeamA}${scoreAString}
+${displayTeamB}${scoreBString}
 ${details}`;
 
       const handleCopy = () => {
@@ -152,7 +167,6 @@ ${details}`;
         return name ? `${symbol}${name} ` : `${symbol} `;
       });
 
-      // 控え選手のボタン生成（空欄は除外）
       const benchButtons = bench.filter(name => name.trim() !== "").map(name => `${name} `);
 
       const presetCategories = {
@@ -194,7 +208,7 @@ ${details}`;
         },
         status: {
           label: "状況・得点",
-          items: ["無死", "一死", "二死", "三死", "チェンジ", "＋１", "＋２", "＋３", "＋４", "得点"]
+          items: ["無死", "一死", "二死", "三死", "＋１", "＋２", "＋３", "＋４", "得点"]
         },
         single: {
           label: "単字パーツ",
@@ -204,6 +218,12 @@ ${details}`;
 
       return (
         <div className="max-w-md mx-auto p-3 space-y-4">
+          
+          {/* ★ 追加：メンバーのサジェスト（候補）リスト */}
+          <datalist id="team-members">
+            {teamMembers.map((name, i) => <option key={i} value={name} />)}
+          </datalist>
+
           <div className="bg-slate-800 text-white p-3 rounded-lg shadow-md">
             <h2 className="text-xs font-bold text-slate-400 mb-1">LINE送信プレビュー</h2>
             <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed bg-slate-900 p-3 rounded border border-slate-700 select-all min-h-[100px]">
@@ -244,7 +264,7 @@ ${details}`;
           </div>
 
           <div className="bg-white p-4 rounded-lg shadow-sm space-y-3">
-            <h3 className="font-bold text-slate-700 text-sm border-b pb-1">2. 選手登録（自動ボタン化）</h3>
+            <h3 className="font-bold text-slate-700 text-sm border-b pb-1">2. 選手登録（タップでリストから選択）</h3>
             
             <div className="text-[11px] font-bold text-slate-400">▼ スタメン</div>
             <div className="grid grid-cols-3 gap-1.5">
@@ -253,6 +273,7 @@ ${details}`;
                   <span className="text-xs font-bold text-emerald-700 w-4">{orderSymbols[idx]}</span>
                   <input
                     type="text"
+                    list="team-members"
                     placeholder="選手名"
                     value={name}
                     onChange={(e) => handleStarterChange(idx, e.target.value)}
@@ -269,6 +290,7 @@ ${details}`;
                   <span className="text-xs font-bold text-indigo-500 w-4">控</span>
                   <input
                     type="text"
+                    list="team-members"
                     placeholder="控え選手"
                     value={name}
                     onChange={(e) => handleBenchChange(idx, e.target.value)}
@@ -291,7 +313,7 @@ ${details}`;
                 </thead>
                 <tbody>
                   <tr className="border-b">
-                    <td className="p-1 font-bold text-left truncate max-w-[60px] text-slate-500">{teamA || "先攻"}</td>
+                    <td className="p-1 font-bold text-left truncate max-w-[60px] text-slate-500">{displayTeamA}</td>
                     {scoresA.map((score, idx) => {
                       const isCurrent = currentInning === idx + 1 && currentHalf === 'top';
                       return (
@@ -311,7 +333,7 @@ ${details}`;
                     })}
                   </tr>
                   <tr>
-                    <td className="p-1 font-bold text-left truncate max-w-[60px] text-slate-500">{teamB || "後攻"}</td>
+                    <td className="p-1 font-bold text-left truncate max-w-[60px] text-slate-500">{displayTeamB}</td>
                     {scoresB.map((score, idx) => {
                       const isCurrent = currentInning === idx + 1 && currentHalf === 'bottom';
                       return (
@@ -334,14 +356,19 @@ ${details}`;
               </table>
             </div>
             
-            <div className="mt-2 flex items-center justify-between bg-emerald-50 p-2 rounded border border-emerald-200 text-xs">
+            <div className="mt-2 flex items-center justify-between bg-emerald-50 p-2 rounded border border-emerald-200">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-emerald-800">現在の攻撃:</span>
-                <span className="font-bold bg-white px-2 py-0.5 rounded border border-emerald-300">
-                  {currentInning}回 {currentHalf === 'top' ? `表 (${teamA || "先攻"})` : `裏 (${teamB || "後攻"})`}
+                <span className="text-xs font-bold text-emerald-800">現在の攻撃:</span>
+                <span className="text-xs font-bold bg-white px-2 py-1 rounded border border-emerald-300">
+                  {currentInning}回 {currentHalf === 'top' ? `表 (${displayTeamA})` : `裏 (${displayTeamB})`}
                 </span>
               </div>
-              <span className="text-[10px] text-emerald-600 font-bold">※チェンジ・＋１ボタンで自動更新</span>
+              <button
+                onClick={handleNextHalf}
+                className="px-4 py-1 text-xs font-bold bg-emerald-600 text-white rounded shadow-sm hover:bg-emerald-700 active:scale-95 transition-transform"
+              >
+                チェンジ 🔄
+              </button>
             </div>
           </div>
 
